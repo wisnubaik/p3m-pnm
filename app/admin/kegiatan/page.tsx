@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent } from "@/components/ui/card";
-import { Trash2, Plus, ArrowLeft } from "lucide-react";
+import { Trash2, Plus, ArrowLeft, Pencil } from "lucide-react";
 import Link from "next/link";
 
 type Kegiatan = {
@@ -19,6 +19,7 @@ export default function AdminKegiatanPage() {
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ judul: "", deskripsi: "", tanggal: "", lokasi: "" });
   const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState<Kegiatan | null>(null);
 
   const fetchData = async () => {
     const { data } = await supabase.from("kegiatan").select("*").order("tanggal", { ascending: false });
@@ -43,6 +44,20 @@ export default function AdminKegiatanPage() {
     await fetchData();
   };
 
+  const handleEdit = async () => {
+    if (!editing) return;
+    setSaving(true);
+    await supabase.from("kegiatan").update({
+      judul: editing.judul,
+      deskripsi: editing.deskripsi,
+      tanggal: editing.tanggal,
+      lokasi: editing.lokasi,
+    }).eq("id", editing.id);
+    setEditing(null);
+    await fetchData();
+    setSaving(false);
+  };
+
   return (
     <main className="min-h-screen bg-slate-50">
       <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center gap-4">
@@ -61,38 +76,13 @@ export default function AdminKegiatanPage() {
             <p className="text-sm font-semibold text-slate-700 flex items-center gap-2">
               <Plus className="w-4 h-4 text-blue-500" /> Tambah Kegiatan
             </p>
-            <input
-              placeholder="Judul Kegiatan"
-              value={form.judul}
-              onChange={(e) => setForm({ ...form, judul: e.target.value })}
-              className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <textarea
-              placeholder="Deskripsi kegiatan"
-              value={form.deskripsi}
-              onChange={(e) => setForm({ ...form, deskripsi: e.target.value })}
-              rows={3}
-              className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <input placeholder="Judul Kegiatan" value={form.judul} onChange={(e) => setForm({ ...form, judul: e.target.value })} className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <textarea placeholder="Deskripsi kegiatan" value={form.deskripsi} onChange={(e) => setForm({ ...form, deskripsi: e.target.value })} rows={3} className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             <div className="grid grid-cols-2 gap-4">
-              <input
-                type="date"
-                value={form.tanggal}
-                onChange={(e) => setForm({ ...form, tanggal: e.target.value })}
-                className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <input
-                placeholder="Lokasi"
-                value={form.lokasi}
-                onChange={(e) => setForm({ ...form, lokasi: e.target.value })}
-                className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              <input type="date" value={form.tanggal} onChange={(e) => setForm({ ...form, tanggal: e.target.value })} className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <input placeholder="Lokasi" value={form.lokasi} onChange={(e) => setForm({ ...form, lokasi: e.target.value })} className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
-            <button
-              onClick={handleAdd}
-              disabled={saving}
-              className="bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold px-6 py-2 rounded-lg transition-colors disabled:opacity-50"
-            >
+            <button onClick={handleAdd} disabled={saving} className="bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold px-6 py-2 rounded-lg transition-colors disabled:opacity-50">
               {saving ? "Menyimpan..." : "Simpan"}
             </button>
           </CardContent>
@@ -112,18 +102,42 @@ export default function AdminKegiatanPage() {
                     <p className="text-xs text-slate-400 mt-1">{item.deskripsi}</p>
                     <p className="text-xs text-slate-400 mt-1">{item.tanggal} • {item.lokasi}</p>
                   </div>
-                  <button
-                    onClick={() => handleDelete(item.id)}
-                    className="text-slate-300 hover:text-red-500 transition-colors flex-shrink-0"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex gap-2 flex-shrink-0">
+                    <button onClick={() => setEditing(item)} className="text-slate-300 hover:text-blue-500 transition-colors">
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => handleDelete(item.id)} className="text-slate-300 hover:text-red-500 transition-colors">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </CardContent>
               </Card>
             ))
           )}
         </div>
       </div>
+
+      {editing && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
+          <Card className="w-full max-w-lg border border-blue-100">
+            <CardContent className="p-6 space-y-4">
+              <p className="text-sm font-semibold text-slate-700">Edit Kegiatan</p>
+              <input value={editing.judul} onChange={(e) => setEditing({...editing, judul: e.target.value})} className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <textarea value={editing.deskripsi} onChange={(e) => setEditing({...editing, deskripsi: e.target.value})} rows={3} className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <div className="grid grid-cols-2 gap-4">
+                <input type="date" value={editing.tanggal} onChange={(e) => setEditing({...editing, tanggal: e.target.value})} className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <input value={editing.lokasi} onChange={(e) => setEditing({...editing, lokasi: e.target.value})} className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div className="flex gap-3">
+                <button onClick={handleEdit} disabled={saving} className="bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold px-6 py-2 rounded-lg transition-colors disabled:opacity-50">
+                  {saving ? "Menyimpan..." : "Simpan"}
+                </button>
+                <button onClick={() => setEditing(null)} className="text-slate-500 text-sm px-4 py-2 rounded-lg border border-slate-200">Batal</button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </main>
   );
 }

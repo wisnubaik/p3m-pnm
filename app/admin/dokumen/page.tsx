@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Plus, ArrowLeft } from "lucide-react";
+import { Trash2, Plus, ArrowLeft, Pencil } from "lucide-react";
 import Link from "next/link";
 
 type Dokumen = {
@@ -20,6 +20,7 @@ export default function AdminDokumenPage() {
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ judul: "", kategori: "", url: "", tahun: "" });
   const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState<Dokumen | null>(null);
 
   const fetchData = async () => {
     const { data } = await supabase.from("dokumen").select("*").order("tahun", { ascending: false });
@@ -44,6 +45,20 @@ export default function AdminDokumenPage() {
     await fetchData();
   };
 
+  const handleEdit = async () => {
+    if (!editing) return;
+    setSaving(true);
+    await supabase.from("dokumen").update({
+      judul: editing.judul,
+      kategori: editing.kategori,
+      url: editing.url,
+      tahun: editing.tahun,
+    }).eq("id", editing.id);
+    setEditing(null);
+    await fetchData();
+    setSaving(false);
+  };
+
   return (
     <main className="min-h-screen bg-slate-50">
       <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center gap-4">
@@ -62,24 +77,10 @@ export default function AdminDokumenPage() {
             <p className="text-sm font-semibold text-slate-700 flex items-center gap-2">
               <Plus className="w-4 h-4 text-blue-500" /> Tambah Dokumen
             </p>
-            <input
-              placeholder="Judul Dokumen"
-              value={form.judul}
-              onChange={(e) => setForm({ ...form, judul: e.target.value })}
-              className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <input
-              placeholder="URL Dokumen (Google Drive, dll)"
-              value={form.url}
-              onChange={(e) => setForm({ ...form, url: e.target.value })}
-              className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <input placeholder="Judul Dokumen" value={form.judul} onChange={(e) => setForm({ ...form, judul: e.target.value })} className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <input placeholder="URL Dokumen (Google Drive, dll)" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             <div className="grid grid-cols-2 gap-4">
-              <select
-                value={form.kategori}
-                onChange={(e) => setForm({ ...form, kategori: e.target.value })}
-                className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
+              <select value={form.kategori} onChange={(e) => setForm({ ...form, kategori: e.target.value })} className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="">Pilih Kategori</option>
                 <option value="Penelitian">Penelitian</option>
                 <option value="PKM">PKM</option>
@@ -87,19 +88,9 @@ export default function AdminDokumenPage() {
                 <option value="Template">Template</option>
                 <option value="Panduan">Panduan</option>
               </select>
-              <input
-                placeholder="Tahun"
-                type="number"
-                value={form.tahun}
-                onChange={(e) => setForm({ ...form, tahun: e.target.value })}
-                className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              <input placeholder="Tahun" type="number" value={form.tahun} onChange={(e) => setForm({ ...form, tahun: e.target.value })} className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
-            <button
-              onClick={handleAdd}
-              disabled={saving}
-              className="bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold px-6 py-2 rounded-lg transition-colors disabled:opacity-50"
-            >
+            <button onClick={handleAdd} disabled={saving} className="bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold px-6 py-2 rounded-lg transition-colors disabled:opacity-50">
               {saving ? "Menyimpan..." : "Simpan"}
             </button>
           </CardContent>
@@ -122,18 +113,48 @@ export default function AdminDokumenPage() {
                     <p className="text-sm font-semibold text-slate-700">{item.judul}</p>
                     <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:underline mt-1 block truncate">{item.url}</a>
                   </div>
-                  <button
-                    onClick={() => handleDelete(item.id)}
-                    className="text-slate-300 hover:text-red-500 transition-colors flex-shrink-0"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex gap-2 flex-shrink-0">
+                    <button onClick={() => setEditing(item)} className="text-slate-300 hover:text-blue-500 transition-colors">
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => handleDelete(item.id)} className="text-slate-300 hover:text-red-500 transition-colors">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </CardContent>
               </Card>
             ))
           )}
         </div>
       </div>
+
+      {editing && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
+          <Card className="w-full max-w-lg border border-blue-100">
+            <CardContent className="p-6 space-y-4">
+              <p className="text-sm font-semibold text-slate-700">Edit Dokumen</p>
+              <input value={editing.judul} onChange={(e) => setEditing({...editing, judul: e.target.value})} className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <input value={editing.url} onChange={(e) => setEditing({...editing, url: e.target.value})} className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <div className="grid grid-cols-2 gap-4">
+                <select value={editing.kategori} onChange={(e) => setEditing({...editing, kategori: e.target.value})} className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="Penelitian">Penelitian</option>
+                  <option value="PKM">PKM</option>
+                  <option value="Laporan">Laporan</option>
+                  <option value="Template">Template</option>
+                  <option value="Panduan">Panduan</option>
+                </select>
+                <input type="number" value={editing.tahun} onChange={(e) => setEditing({...editing, tahun: Number(e.target.value)})} className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div className="flex gap-3">
+                <button onClick={handleEdit} disabled={saving} className="bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold px-6 py-2 rounded-lg transition-colors disabled:opacity-50">
+                  {saving ? "Menyimpan..." : "Simpan"}
+                </button>
+                <button onClick={() => setEditing(null)} className="text-slate-500 text-sm px-4 py-2 rounded-lg border border-slate-200">Batal</button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </main>
   );
 }

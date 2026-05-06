@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Plus, ArrowLeft } from "lucide-react";
+import { Trash2, Plus, ArrowLeft, Pencil } from "lucide-react";
 import Link from "next/link";
 
 type Penelitian = {
@@ -22,6 +22,7 @@ export default function AdminPenelitianPage() {
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ judul: "", ketua: "", anggota: "", tahun: "", jenis: "internal", status: "aktif" });
   const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState<Penelitian | null>(null);
 
   const fetchData = async () => {
     const { data } = await supabase.from("penelitian").select("*").order("tahun", { ascending: false });
@@ -41,10 +42,26 @@ export default function AdminPenelitianPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Hapus penelitian ini?")) return;
-    await supabase.from("penelitian").delete().eq("id", id);
-    await fetchData();
-  };
+  if (!confirm("Hapus penelitian ini?")) return;
+  await supabase.from("penelitian").delete().eq("id", id);
+  await fetchData();
+};
+
+  const handleEdit = async () => {
+  if (!editing) return;
+  setSaving(true);
+  await supabase.from("penelitian").update({
+    judul: editing.judul,
+    ketua: editing.ketua,
+    anggota: editing.anggota,
+    tahun: editing.tahun,
+    jenis: editing.jenis,
+    status: editing.status,
+  }).eq("id", editing.id);
+  setEditing(null);
+  await fetchData();
+  setSaving(false);
+};
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -142,18 +159,52 @@ export default function AdminPenelitianPage() {
                     <p className="text-sm font-semibold text-slate-700">{item.judul}</p>
                     <p className="text-xs text-slate-400 mt-1">{item.ketua} {item.anggota ? `• ${item.anggota}` : ""}</p>
                   </div>
-                  <button
-                    onClick={() => handleDelete(item.id)}
-                    className="text-slate-300 hover:text-red-500 transition-colors flex-shrink-0"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex gap-2 flex-shrink-0">
+  <button onClick={() => setEditing(item)} className="text-slate-300 hover:text-blue-500 transition-colors">
+    <Pencil className="w-4 h-4" />
+  </button>
+  <button onClick={() => handleDelete(item.id)} className="text-slate-300 hover:text-red-500 transition-colors">
+    <Trash2 className="w-4 h-4" />
+  </button>
+</div>
                 </CardContent>
               </Card>
             ))
           )}
         </div>
       </div>
+      {editing && (
+  <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
+    <Card className="w-full max-w-lg border border-blue-100">
+      <CardContent className="p-6 space-y-4">
+        <p className="text-sm font-semibold text-slate-700">Edit Penelitian</p>
+        <input value={editing.judul} onChange={(e) => setEditing({...editing, judul: e.target.value})} className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        <div className="grid grid-cols-2 gap-4">
+          <input value={editing.ketua} onChange={(e) => setEditing({...editing, ketua: e.target.value})} placeholder="Ketua" className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <input value={editing.anggota} onChange={(e) => setEditing({...editing, anggota: e.target.value})} placeholder="Anggota" className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          <input type="number" value={editing.tahun} onChange={(e) => setEditing({...editing, tahun: Number(e.target.value)})} className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <select value={editing.jenis} onChange={(e) => setEditing({...editing, jenis: e.target.value})} className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="internal">Internal</option>
+            <option value="eksternal">Eksternal</option>
+            <option value="unggulan">Unggulan</option>
+          </select>
+          <select value={editing.status} onChange={(e) => setEditing({...editing, status: e.target.value})} className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="aktif">Aktif</option>
+            <option value="selesai">Selesai</option>
+          </select>
+        </div>
+        <div className="flex gap-3">
+          <button onClick={handleEdit} disabled={saving} className="bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold px-6 py-2 rounded-lg transition-colors disabled:opacity-50">
+            {saving ? "Menyimpan..." : "Simpan"}
+          </button>
+          <button onClick={() => setEditing(null)} className="text-slate-500 text-sm px-4 py-2 rounded-lg border border-slate-200">Batal</button>
+        </div>
+      </CardContent>
+    </Card>
+  </div>
+)}
     </main>
   );
 }
