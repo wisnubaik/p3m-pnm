@@ -1,174 +1,219 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import Navbar from "@/components/Navbar";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Plus, ArrowLeft, Pencil } from "lucide-react";
+import { BookOpen, Users, Award, FileText, ArrowRight, Bell } from "lucide-react";
 import Link from "next/link";
+import { motion, Variants, useInView, useMotionValue, useSpring } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
 
-type Pkm = {
-  id: number;
-  judul: string;
-  ketua: string;
-  anggota: string;
-  tahun: number;
-  jenis: string;
-  status: string;
+// ── Types ──────────────────────────────────────────────
+const fadeUp: Variants = {
+  hidden: { opacity: 0, y: 40 },
+  visible: (i: number = 0) => ({
+    opacity: 1, y: 0,
+    transition: { delay: i * 0.12, duration: 0.6, ease: [0.22, 1, 0.36, 1] },
+  }),
 };
 
-export default function AdminPkmPage() {
-  const [data, setData] = useState<Pkm[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ judul: "", ketua: "", anggota: "", tahun: "", jenis: "internal", status: "aktif" });
-  const [saving, setSaving] = useState(false);
-  const [editing, setEditing] = useState<Pkm | null>(null);
+const stagger: Variants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.1 } },
+};
 
-  const fetchData = async () => {
-    const { data } = await supabase.from("pkm").select("*").order("tahun", { ascending: false });
-    setData(data ?? []);
-    setLoading(false);
-  };
+// ── Counter ────────────────────────────────────────────
+function Counter({ target }: { target: number }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const inView = useInView(ref, { once: true });
+  const motionVal = useMotionValue(0);
+  const spring = useSpring(motionVal, { stiffness: 60, damping: 20 });
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    if (inView) motionVal.set(target);
+  }, [inView, motionVal, target]);
 
-  const handleAdd = async () => {
-    if (!form.judul || !form.ketua || !form.tahun) return alert("Judul, ketua, dan tahun wajib diisi.");
-    setSaving(true);
-    await supabase.from("pkm").insert([form]);
-    setForm({ judul: "", ketua: "", anggota: "", tahun: "", jenis: "internal", status: "aktif" });
-    await fetchData();
-    setSaving(false);
-  };
+  useEffect(() => {
+    return spring.on("change", (v) => {
+      if (ref.current) ref.current.textContent = Math.round(v).toString();
+    });
+  }, [spring]);
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Hapus PKM ini?")) return;
-    await supabase.from("pkm").delete().eq("id", id);
-    await fetchData();
-  };
+  return <span ref={ref}>0</span>;
+}
 
-  const handleEdit = async () => {
-    if (!editing) return;
-    setSaving(true);
-    await supabase.from("pkm").update({
-      judul: editing.judul,
-      ketua: editing.ketua,
-      anggota: editing.anggota,
-      tahun: editing.tahun,
-      jenis: editing.jenis,
-      status: editing.status,
-    }).eq("id", editing.id);
-    setEditing(null);
-    await fetchData();
-    setSaving(false);
-  };
+// ── Data ───────────────────────────────────────────────
+const stats = [
+  { icon: BookOpen, label: "Penelitian Aktif", value: 124 },
+  { icon: Users, label: "Dosen Peneliti", value: 87 },
+  { icon: Award, label: "Pengabdian Selesai", value: 312 },
+  { icon: FileText, label: "Publikasi", value: 56 },
+];
 
+const pengumuman = [
+  { tag: "Penelitian", judul: "Batas Akhir Pengumpulan Proposal Penelitian Internal 2025", tanggal: "3 Mei 2025" },
+  { tag: "PKM", judul: "Pembukaan Pendaftaran PKM Unggulan Semester Genap 2025", tanggal: "28 Apr 2025" },
+  { tag: "Semhas", judul: "Jadwal Seminar Hasil Penelitian Kompetitif Internal 2025", tanggal: "20 Apr 2025" },
+];
+
+// ── Page ───────────────────────────────────────────────
+export default function Home() {
   return (
-    <main className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center gap-4">
-        <Link href="/admin/dashboard" className="text-slate-400 hover:text-blue-600 transition-colors">
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <div>
-          <p className="text-xs text-blue-500 font-semibold uppercase tracking-widest">Admin Panel</p>
-          <h1 className="text-lg font-bold text-slate-800">Kelola PKM</h1>
-        </div>
-      </header>
+    <main className="min-h-screen bg-white overflow-x-hidden">
+      <Navbar />
 
-      <div className="max-w-4xl mx-auto px-4 py-10 space-y-8">
-        <Card className="border border-blue-100">
-          <CardContent className="p-6 space-y-4">
-            <p className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-              <Plus className="w-4 h-4 text-blue-500" /> Tambah PKM
-            </p>
-            <input placeholder="Judul PKM" value={form.judul} onChange={(e) => setForm({ ...form, judul: e.target.value })} className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <div className="grid grid-cols-2 gap-4">
-              <input placeholder="Ketua" value={form.ketua} onChange={(e) => setForm({ ...form, ketua: e.target.value })} className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              <input placeholder="Anggota" value={form.anggota} onChange={(e) => setForm({ ...form, anggota: e.target.value })} className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <input placeholder="Tahun" type="number" value={form.tahun} onChange={(e) => setForm({ ...form, tahun: e.target.value })} className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              <select value={form.jenis} onChange={(e) => setForm({ ...form, jenis: e.target.value })} className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="internal">Internal</option>
-                <option value="eksternal">Eksternal</option>
-                <option value="unggulan">Unggulan</option>
-              </select>
-              <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="aktif">Aktif</option>
-                <option value="selesai">Selesai</option>
-              </select>
-            </div>
-            <button onClick={handleAdd} disabled={saving} className="bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold px-6 py-2 rounded-lg transition-colors disabled:opacity-50">
-              {saving ? "Menyimpan..." : "Simpan"}
-            </button>
-          </CardContent>
-        </Card>
+      {/* ── Hero ── */}
+      <section className="relative pt-36 pb-28 overflow-hidden bg-gradient-to-br from-blue-950 via-blue-800 to-blue-600">
+        {/* Animated blobs */}
+        <motion.div
+          animate={{ scale: [1, 1.15, 1], opacity: [0.15, 0.25, 0.15] }}
+          transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute top-0 right-0 w-[700px] h-[700px] rounded-full bg-blue-400 -translate-y-1/2 translate-x-1/4 blur-3xl pointer-events-none"
+        />
+        <motion.div
+          animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.2, 0.1] }}
+          transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+          className="absolute bottom-0 left-0 w-[500px] h-[500px] rounded-full bg-blue-300 translate-y-1/2 -translate-x-1/4 blur-3xl pointer-events-none"
+        />
 
-        <div className="space-y-3">
-          {loading ? (
-            <p className="text-center text-slate-400 text-sm">Memuat data...</p>
-          ) : data.length === 0 ? (
-            <p className="text-center text-slate-400 text-sm">Belum ada data PKM.</p>
-          ) : (
-            data.map((item) => (
-              <Card key={item.id} className="border border-slate-100">
-                <CardContent className="flex items-start justify-between gap-4 p-5">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Badge className="text-xs bg-blue-100 text-blue-700">{item.jenis}</Badge>
-                      <Badge className={`text-xs ${item.status === "aktif" ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>{item.status}</Badge>
-                      <span className="text-xs text-slate-400">{item.tahun}</span>
-                    </div>
-                    <p className="text-sm font-semibold text-slate-700">{item.judul}</p>
-                    <p className="text-xs text-slate-400 mt-1">{item.ketua} {item.anggota ? `• ${item.anggota}` : ""}</p>
-                  </div>
-                  <div className="flex gap-2 flex-shrink-0">
-                    <button onClick={() => setEditing(item)} className="text-slate-300 hover:text-blue-500 transition-colors">
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => handleDelete(item.id)} className="text-slate-300 hover:text-red-500 transition-colors">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+        <motion.div
+          variants={stagger}
+          initial="hidden"
+          animate="visible"
+          className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center"
+        >
+          <motion.div variants={fadeUp} custom={0}>
+            <Badge className="mb-6 bg-blue-500/20 text-blue-200 border border-blue-400/30 text-xs tracking-widest uppercase px-4 py-1">
+              Politeknik Negeri Madiun
+            </Badge>
+          </motion.div>
+
+          <motion.h1
+            variants={fadeUp}
+            custom={1}
+            className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight mb-6"
+          >
+            Pusat Penelitian &{" "}
+            <motion.span
+              className="text-blue-300 inline-block"
+              animate={{ backgroundPositionX: ["0%", "100%", "0%"] }}
+              transition={{ duration: 4, repeat: Infinity }}
+            >
+              Pengabdian
+            </motion.span>
+            <br />kepada Masyarakat
+          </motion.h1>
+
+          <motion.p variants={fadeUp} custom={2} className="text-blue-200 text-lg max-w-2xl mx-auto mb-10 leading-relaxed">
+            Mendorong inovasi, kolaborasi, dan kontribusi nyata melalui penelitian berkualitas dan pengabdian yang berdampak.
+          </motion.p>
+
+          <motion.div variants={fadeUp} custom={3} className="flex flex-wrap gap-4 justify-center">
+            <Button asChild size="lg" className="bg-white text-blue-900 hover:bg-blue-50 font-semibold shadow-lg hover:scale-105 transition-transform">
+              <Link href="/penelitian/internal">Lihat Penelitian <ArrowRight className="ml-2 w-4 h-4" /></Link>
+            </Button>
+            <Button asChild size="lg" variant="outline" className="border-blue-300 text-white hover:bg-blue-800 bg-transparent hover:scale-105 transition-transform">
+              <Link href="/informasi/pengumuman">Pengumuman</Link>
+            </Button>
+          </motion.div>
+        </motion.div>
+      </section>
+
+      {/* ── Stats ── */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-12 relative z-10">
+        <motion.div
+          variants={stagger}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-50px" }}
+          className="grid grid-cols-2 lg:grid-cols-4 gap-4"
+        >
+          {stats.map((stat, i) => (
+            <motion.div key={stat.label} variants={fadeUp} custom={i} whileHover={{ y: -6, scale: 1.02 }} transition={{ type: "spring", stiffness: 300 }}>
+              <Card className="shadow-lg border border-blue-100 h-full">
+                <CardContent className="flex flex-col items-center justify-center p-6 text-center gap-2">
+                  <motion.div
+                    className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center"
+                    whileHover={{ rotate: 15, scale: 1.1 }}
+                  >
+                    <stat.icon className="w-5 h-5 text-blue-600" />
+                  </motion.div>
+                  <p className="text-3xl font-bold text-blue-900">
+                    <Counter target={stat.value} />
+                  </p>
+                  <p className="text-xs text-slate-500 leading-tight">{stat.label}</p>
                 </CardContent>
               </Card>
-            ))
-          )}
-        </div>
-      </div>
+            </motion.div>
+          ))}
+        </motion.div>
+      </section>
 
-      {editing && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
-          <Card className="w-full max-w-lg border border-blue-100">
-            <CardContent className="p-6 space-y-4">
-              <p className="text-sm font-semibold text-slate-700">Edit PKM</p>
-              <input value={editing.judul} onChange={(e) => setEditing({...editing, judul: e.target.value})} className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              <div className="grid grid-cols-2 gap-4">
-                <input value={editing.ketua} onChange={(e) => setEditing({...editing, ketua: e.target.value})} placeholder="Ketua" className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                <input value={editing.anggota} onChange={(e) => setEditing({...editing, anggota: e.target.value})} placeholder="Anggota" className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <input type="number" value={editing.tahun} onChange={(e) => setEditing({...editing, tahun: Number(e.target.value)})} className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                <select value={editing.jenis} onChange={(e) => setEditing({...editing, jenis: e.target.value})} className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="internal">Internal</option>
-                  <option value="eksternal">Eksternal</option>
-                  <option value="unggulan">Unggulan</option>
-                </select>
-                <select value={editing.status} onChange={(e) => setEditing({...editing, status: e.target.value})} className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="aktif">Aktif</option>
-                  <option value="selesai">Selesai</option>
-                </select>
-              </div>
-              <div className="flex gap-3">
-                <button onClick={handleEdit} disabled={saving} className="bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold px-6 py-2 rounded-lg transition-colors disabled:opacity-50">
-                  {saving ? "Menyimpan..." : "Simpan"}
-                </button>
-                <button onClick={() => setEditing(null)} className="text-slate-500 text-sm px-4 py-2 rounded-lg border border-slate-200">Batal</button>
-              </div>
-            </CardContent>
-          </Card>
+      {/* ── Pengumuman ── */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <motion.div
+          variants={fadeUp}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          className="flex items-center justify-between mb-8"
+        >
+          <div>
+            <p className="text-xs font-semibold text-blue-500 uppercase tracking-widest mb-1">Terkini</p>
+            <h2 className="text-2xl font-bold text-slate-900">Pengumuman Terbaru</h2>
+          </div>
+          <Button asChild variant="ghost" className="text-blue-600 hover:text-blue-800">
+            <Link href="/informasi/pengumuman">Lihat Semua <ArrowRight className="ml-1 w-4 h-4" /></Link>
+          </Button>
+        </motion.div>
+
+        <motion.div
+          variants={stagger}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-50px" }}
+          className="grid gap-4"
+        >
+          {pengumuman.map((item, i) => (
+            <motion.div
+              key={i}
+              variants={fadeUp}
+              custom={i}
+              whileHover={{ x: 6 }}
+              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            >
+              <Card className="border border-slate-100 hover:border-blue-200 hover:shadow-md transition-all cursor-pointer group">
+                <CardContent className="flex items-center gap-4 p-5">
+                  <motion.div
+                    className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0"
+                    whileHover={{ scale: 1.15, backgroundColor: "#dbeafe" }}
+                  >
+                    <Bell className="w-4 h-4 text-blue-500" />
+                  </motion.div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700">{item.tag}</Badge>
+                      <span className="text-xs text-slate-400">{item.tanggal}</span>
+                    </div>
+                    <p className="text-sm font-medium text-slate-700 group-hover:text-blue-700 transition-colors truncate">{item.judul}</p>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all flex-shrink-0" />
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </motion.div>
+      </section>
+
+      {/* ── Footer ── */}
+      <footer className="bg-blue-950 text-blue-200 py-10 mt-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <p className="font-bold text-white text-lg mb-1">P3M — Politeknik Negeri Madiun</p>
+          <p className="text-sm text-blue-400">Pusat Penelitian dan Pengabdian kepada Masyarakat</p>
+          <p className="text-xs text-blue-600 mt-6">© {new Date().getFullYear()} P3M PNM. All rights reserved.</p>
         </div>
-      )}
+      </footer>
     </main>
   );
 }
