@@ -47,7 +47,7 @@ export default function Navbar() {
 
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3">
-            <Image src="/logo-pnm.jpg" alt="Logo PNM" width={40} height={40} className="rounded-full" />
+            <Image src="/logo-p3m.png" alt="Logo PNM" width={40} height={40} className="rounded-full" />
             <div className="leading-tight">
               <p className="text-xs text-blue-500 font-medium tracking-widest uppercase">Politeknik Negeri Madiun</p>
               <p className="text-sm font-bold text-blue-900">P3M</p>
